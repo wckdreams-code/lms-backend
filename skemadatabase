@@ -1,0 +1,96 @@
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.certificates (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid,
+  course_id uuid,
+  certificate_url text,
+  issued_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT certificates_pkey PRIMARY KEY (id),
+  CONSTRAINT certificates_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id),
+  CONSTRAINT certificates_course_id_fkey FOREIGN KEY (course_id) REFERENCES public.courses(id)
+);
+CREATE TABLE public.courses (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  title text NOT NULL,
+  description text,
+  category text,
+  price numeric DEFAULT 0,
+  is_placement_test boolean DEFAULT false,
+  thumbnail_url text,
+  created_by uuid,
+  CONSTRAINT courses_pkey PRIMARY KEY (id),
+  CONSTRAINT courses_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.modules (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  course_id uuid,
+  title text,
+  order_index integer,
+  pdf_content_url text,
+  CONSTRAINT modules_pkey PRIMARY KEY (id),
+  CONSTRAINT modules_course_id_fkey FOREIGN KEY (course_id) REFERENCES public.courses(id)
+);
+CREATE TABLE public.profiles (
+  id uuid NOT NULL,
+  full_name text,
+  role text DEFAULT 'siswa'::text CHECK (role = ANY (ARRAY['siswa'::text, 'admin'::text, 'guru'::text])),
+  current_level text DEFAULT 'beginner'::text CHECK (current_level = ANY (ARRAY['beginner'::text, 'amateur'::text, 'pro'::text])),
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT profiles_pkey PRIMARY KEY (id),
+  CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.questions (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  module_id uuid,
+  course_id uuid,
+  question_text text NOT NULL,
+  option_a text,
+  option_b text,
+  option_c text,
+  option_d text,
+  correct_answer character,
+  is_exam boolean DEFAULT false,
+  CONSTRAINT questions_pkey PRIMARY KEY (id),
+  CONSTRAINT questions_module_id_fkey FOREIGN KEY (module_id) REFERENCES public.modules(id),
+  CONSTRAINT questions_course_id_fkey FOREIGN KEY (course_id) REFERENCES public.courses(id)
+);
+CREATE TABLE public.student_progress (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid,
+  course_id uuid,
+  module_id uuid,
+  score integer DEFAULT 0,
+  is_completed boolean DEFAULT false,
+  finished_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT student_progress_pkey PRIMARY KEY (id),
+  CONSTRAINT student_progress_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id),
+  CONSTRAINT student_progress_course_id_fkey FOREIGN KEY (course_id) REFERENCES public.courses(id),
+  CONSTRAINT student_progress_module_id_fkey FOREIGN KEY (module_id) REFERENCES public.modules(id)
+);
+CREATE TABLE public.transactions (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid,
+  course_id uuid,
+  order_id text UNIQUE,
+  amount numeric,
+  status_pembayaran text DEFAULT 'pending'::text,
+  is_confirmed_by_admin boolean DEFAULT false,
+  payment_proof_url text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT transactions_pkey PRIMARY KEY (id),
+  CONSTRAINT transactions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id),
+  CONSTRAINT transactions_course_id_fkey FOREIGN KEY (course_id) REFERENCES public.courses(id)
+);
+CREATE TABLE public.user_feedback (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid,
+  course_id uuid,
+  rating integer CHECK (rating >= 1 AND rating <= 5),
+  comment text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT user_feedback_pkey PRIMARY KEY (id),
+  CONSTRAINT user_feedback_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id),
+  CONSTRAINT user_feedback_course_id_fkey FOREIGN KEY (course_id) REFERENCES public.courses(id)
+);

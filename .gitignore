@@ -1,0 +1,28 @@
+# Node.js
+node_modules/
+npm-debug.log
+yarn.lock
+package-lock.json
+
+# Python
+__pycache__/
+*.pyc
+.env
+
+# Environment
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# VSCode
+.vscode/
+
+# Uploads (kalau ada file PDF dll)
+uploads/
