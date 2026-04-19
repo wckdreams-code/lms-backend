@@ -1,3 +1,4 @@
+// controllers/authController.js
 const authModel = require('../models/authModel');
 
 exports.register = async (req, res) => {
@@ -18,7 +19,11 @@ exports.register = async (req, res) => {
             });
         }
 
-        const user    = await authModel.registerUser(email, password);
+        // 1. Buat User di Auth Supabase
+        const user = await authModel.registerUser(email, password);
+        
+        // 2. Buat Profile. Pastikan backend menggunakan SERVICE_ROLE key di .env 
+        // jika RLS di tabel profiles aktif, agar bisa melakukan bypass RLS saat insert.
         const profile = await authModel.insertProfile(user.id, full_name);
 
         res.status(201).json({
@@ -29,23 +34,23 @@ exports.register = async (req, res) => {
         });
 
     } catch (error) {
-        // Pesan Supabase bisa verbose — sederhanakan untuk klien
+        console.error("Register Error:", error); // Tambahkan console log untuk debugging BE
+        
         const msg = error.message?.includes('already registered')
             ? 'Email ini sudah terdaftar. Silakan login.'
             : error.message;
 
-        res.status(500).json({ status: 'error', message: msg });
+        res.status(500).json({ status: 'error', message: msg, detail: error.details || null });
     }
 };
 
 exports.login = async (req, res) => {
-try {
-      const { email, password, role } = req.body;
+    try {
+        const { email, password, role } = req.body;
 
         if (!email || !password) {
             return res.status(400).json({ status: 'error', message: 'Email dan password wajib diisi.' });
         }
-
 
         const result = await authModel.loginUser(email, password);
 
@@ -55,12 +60,12 @@ try {
         if (!profile) {
             return res.status(403).json({
                 status: 'error',
-                message: 'Profil pengguna tidak ditemukan.'
+                message: 'Profil pengguna tidak ditemukan. Proses registrasi mungkin belum sempurna.'
             });
         }
 
-        // Validasi role: jika login sebagai admin tapi role di DB bukan admin/guru → tolak
-        if (role === 'admin' && profile.role === 'siswa') {
+        // Validasi role opsional dari client
+        if (role && role === 'admin' && profile.role !== 'admin') {
             return res.status(403).json({
                 status: 'error',
                 message: 'Kamu tidak memiliki akses sebagai Admin.'
@@ -78,11 +83,13 @@ try {
             }
         });
 
-  } catch (error) {
-        // Jika error berasal dari Supabase (Invalid credentials)
-        const msg = error.message?.includes('Invalid login credentials') 
-            ? 'Email atau password salah.' 
+    } catch (error) {
+        console.error("Login Error:", error); // Logging backend
+        
+        const msg = (error.message?.includes('Invalid login credentials') || error.message?.includes('Email not confirmed'))
+            ? 'Email atau password salah, atau email belum dikonfirmasi.' 
             : error.message;
+            
         res.status(401).json({ status: 'error', message: msg });
     }
 };

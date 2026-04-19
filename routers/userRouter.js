@@ -11,4 +11,12 @@ router.post('/placement-test', authMiddleware, userController.completePlacementT
 router.get('/admin/all', authMiddleware, userController.adminGetAllUsers);
 router.put('/admin/update/:id', authMiddleware, userController.adminUpdateUser);
 
+// Tambahan Endpoint Profile
+router.get('/my-courses', authMiddleware, userController.getMyCourses);
+router.get('/my-certificates', authMiddleware, userController.getMyCertificates);
+
+router.get('/transactions', authMiddleware, userController.getTransactionHistory);
+router.put('/update', authMiddleware, userController.updateProfile);
+router.delete('/delete', authMiddleware, userController.deleteAccount);
+
 module.exports = router;

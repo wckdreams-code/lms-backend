@@ -2,13 +2,16 @@ const courseModel = require('../models/courseModel');
 
 exports.listCourses = async (req, res) => {
   try {
-    const courses = await courseModel.getAllCourses();
+    // Tangkap query string dari URL (contoh: ?search=inggris&category=Bahasa)
+    const { search, category } = req.query;
+    
+    // Kirim ke model
+    const courses = await courseModel.getAllCourses({ search, category });
     res.status(200).json({ status: 'success', data: courses });
   } catch (error) {
     res.status(500).json({ status: 'error', message: error.message });
   }
 };
-
 exports.getDetail = async (req, res) => {
   try {
     const { id } = req.params;

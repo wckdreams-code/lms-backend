@@ -1,5 +1,7 @@
+// src/controllers/transactionController.js
 const midtransClient = require('midtrans-client');
 const transactionModel = require('../models/transactionModel');
+const courseModel = require('../models/courseModel'); // Import course model
 
 // Inisialisasi Midtrans
 let snap = new midtransClient.Snap({
@@ -7,50 +9,77 @@ let snap = new midtransClient.Snap({
   serverKey: process.env.MIDTRANS_SERVER_KEY
 });
 
+// 1. Fungsi Checkout (Beli / Klaim Gratis)
 exports.checkout = async (req, res) => {
   try {
-    const { course_id, amount, course_title } = req.body;
-    const orderId = `ORDER-${Date.now()}-${req.user.id}`;
+    const { course_id } = req.body;
+    const userId = req.user.id;
 
-    // 1. Buat parameter untuk Midtrans
+    // Ambil detail kursus untuk cek harga
+    const course = await courseModel.getCourseDetail(course_id);
+    if (!course) {
+        return res.status(404).json({ status: 'error', message: 'Kursus tidak ditemukan' });
+    }
+
+    const orderId = `ORDER-${Date.now()}-${userId}`;
+
+    // A. LOGIKA KURSUS GRATIS (Price == 0)
+    if (course.price == 0) {
+        await transactionModel.createTransaction({
+            user_id: userId,
+            course_id: course_id,
+            order_id: orderId,
+            amount: 0,
+            status_pembayaran: 'success',
+            is_confirmed_by_admin: true // Langsung aktif
+        });
+
+        return res.status(200).json({
+            status: 'success',
+            message: 'Kursus gratis berhasil diklaim!',
+            is_free: true
+        });
+    }
+
+    // B. LOGIKA KURSUS BERBAYAR (Midtrans)
     let parameter = {
       "transaction_details": {
         "order_id": orderId,
-        "gross_amount": amount
+        "gross_amount": course.price
       },
       "customer_details": {
-        "first_name": req.user.email, // Ambil dari supabase auth user
+        "email": req.user.email,
       },
       "item_details": [{
-        "id": course_id,
-        "price": amount,
+        "id": course.id,
+        "price": course.price,
         "quantity": 1,
-        "name": course_title
+        "name": course.title
       }]
     };
 
-    // 2. Dapatkan Snap Token
     const transaction = await snap.createTransaction(parameter);
     
-    // 3. Simpan ke database kita (Status: pending)
     await transactionModel.createTransaction({
-      user_id: req.user.id,
+      user_id: userId,
       course_id: course_id,
       order_id: orderId,
-      amount: amount,
+      amount: course.price,
       status_pembayaran: 'pending'
     });
 
     res.status(200).json({
       status: 'success',
-      snap_token: transaction.token
+      snap_token: transaction.token,
+      is_free: false
     });
+
   } catch (error) {
     res.status(500).json({ status: 'error', message: error.message });
   }
 };
 
-// Webhook untuk menerima notifikasi otomatis dari Midtrans
+// 2. Webhook untuk menerima notifikasi otomatis dari Midtrans
 exports.notificationWebhook = async (req, res) => {
   try {
     const statusResponse = await snap.transaction.notification(req.body);
@@ -73,7 +102,7 @@ exports.notificationWebhook = async (req, res) => {
   }
 };
 
-// Admin mengonfirmasi akses kursus
+// 3. Admin mengonfirmasi akses kursus
 exports.adminConfirm = async (req, res) => {
   try {
     if (req.user.role !== 'admin') return res.status(403).json({ message: 'Forbidden' });

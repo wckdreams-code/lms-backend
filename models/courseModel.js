@@ -1,12 +1,23 @@
 const supabase = require('../config/supabase');
 
 const courseModel = {
-  // Ambil semua kursus (kecuali placement test)
-  getAllCourses: async () => {
-    const { data, error } = await supabase
+  getAllCourses: async (filters = {}) => {
+    let query = supabase
       .from('courses')
       .select('*')
       .eq('is_placement_test', false);
+
+    // Filter berdasarkan teks pencarian (case-insensitive)
+    if (filters.search) {
+      query = query.ilike('title', `%${filters.search}%`);
+    }
+
+    // Filter berdasarkan kategori yang dipilih
+    if (filters.category && filters.category !== 'all') {
+      query = query.eq('category', filters.category);
+    }
+
+    const { data, error } = await query;
     if (error) throw error;
     return data;
   },

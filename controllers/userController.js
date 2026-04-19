@@ -57,3 +57,52 @@ exports.adminUpdateUser = async (req, res) => {
     res.status(500).json({ status: 'error', message: error.message });
   }
 };
+
+exports.getMyCourses = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const courses = await userModel.getMyCourses(userId);
+    res.status(200).json({ status: 'success', data: courses });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+};
+
+exports.getMyCertificates = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const certificates = await userModel.getMyCertificates(userId);
+    res.status(200).json({ status: 'success', data: certificates });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+};
+
+
+exports.getTransactionHistory = async (req, res) => {
+  try {
+    const data = await userModel.getTransactionHistory(req.user.id);
+    res.status(200).json({ status: 'success', data });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+};
+
+exports.updateProfile = async (req, res) => {
+  try {
+    const { full_name } = req.body;
+    const updated = await userModel.updateProfile(req.user.id, { full_name });
+    res.status(200).json({ status: 'success', data: updated });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+};
+
+exports.deleteAccount = async (req, res) => {
+  try {
+    await userModel.deleteUserFull(req.user.id);
+    res.status(200).json({ status: 'success', message: 'Akun berhasil dihapus' });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+};
