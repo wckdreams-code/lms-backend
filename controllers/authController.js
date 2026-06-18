@@ -20,7 +20,7 @@ exports.register = async (req, res) => {
         }
 
         // 1. Buat User di Auth Supabase
-        const user = await authModel.registerUser(email, password);
+        const user = await authModel.registerUser(email, password, full_name);
         
         // 2. Buat Profile. Pastikan backend menggunakan SERVICE_ROLE key di .env 
         // jika RLS di tabel profiles aktif, agar bisa melakukan bypass RLS saat insert.
@@ -91,5 +91,59 @@ exports.login = async (req, res) => {
             : error.message;
             
         res.status(401).json({ status: 'error', message: msg });
+    }
+};
+
+exports.staffLogin = async (req, res) => {
+    try {
+        const { email, password } = req.body;
+
+        if (!email || !password) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Email dan password wajib diisi.'
+            });
+        }
+
+        const result = await authModel.loginUser(email, password);
+        const profile = await authModel.getProfileByUserId(result.user.id);
+
+        if (!profile) {
+            return res.status(403).json({
+                status: 'error',
+                message: 'Profil pengguna tidak ditemukan.'
+            });
+        }
+
+        if (!['admin', 'guru'].includes(profile.role)) {
+            return res.status(403).json({
+                status: 'error',
+                message: 'Akun ini bukan Guru atau Admin.'
+            });
+        }
+
+        const redirect_url = profile.role === 'admin'
+            ? '/admin/dashboard'
+            : '/guru/dashboard';
+
+        res.status(200).json({
+            status: 'success',
+            access_token: result.access_token,
+            redirect_url,
+            user: {
+                id: result.user.id,
+                email: result.user.email,
+                full_name: profile.full_name,
+                role: profile.role
+            }
+        });
+
+    } catch (error) {
+        console.error("Staff Login Error:", error);
+
+        res.status(401).json({
+            status: 'error',
+            message: 'Email atau password salah.'
+        });
     }
 };

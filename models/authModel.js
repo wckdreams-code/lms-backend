@@ -2,13 +2,16 @@
 const supabase = require('../config/supabase');
 
 // 1. Register user menggunakan Admin API (Bypass limit email & auto-confirm)
-exports.registerUser = async (email, password) => {
+exports.registerUser = async (email, password, full_name) => {
     const { data, error } = await supabase.auth.admin.createUser({
-        email: email,
-        password: password,
-        email_confirm: true // Otomatis terkonfirmasi agar bisa langsung dipakai login
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: {
+            full_name
+        }
     });
-    
+
     if (error) throw error;
     return data.user;
 };
@@ -17,11 +20,15 @@ exports.registerUser = async (email, password) => {
 exports.insertProfile = async (userId, full_name) => {
     const { data, error } = await supabase
         .from('profiles')
-        .insert([{ id: userId, full_name, role: 'siswa' }])
-        .select('id, full_name, role');
-        
+        .upsert(
+            [{ id: userId, full_name, role: 'siswa' }],
+            { onConflict: 'id' }
+        )
+        .select('id, full_name, role')
+        .single();
+
     if (error) throw error;
-    return data[0];
+    return data;
 };
 
 // 3. Login user

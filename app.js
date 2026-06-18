@@ -9,7 +9,9 @@ const moduleRouter     = require('./routers/moduleRouter');
 const questionRouter   = require('./routers/questionRouter');
 const authRouter       = require('./routers/authRouter');
 const statsRouter      = require('./routers/statsRouter');
-const transactionRouter = require('./routers/transactionRouter'); // <-- 1. TAMBAHKAN IMPORT INI
+const transactionRouter = require('./routers/transactionRouter');
+const adminRouter = require('./routers/adminRouter');
+const teacherRouter = require('./routers/teacherRouter');
 
 const app = express();
 
@@ -30,7 +32,7 @@ app.use(cors({
       callback(new Error('Not allowed by CORS'));
     }
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 }));
@@ -45,7 +47,9 @@ app.use('/api/v1/modules',      moduleRouter);
 app.use('/api/v1/questions',    questionRouter);
 app.use('/api/v1/auth',         authRouter);
 app.use('/api/v1/stats',        statsRouter);
-app.use('/api/v1/transactions', transactionRouter); // <-- 2. DAFTARKAN ROUTE INI
+app.use('/api/v1/transactions', transactionRouter); 
+app.use('/api/v1/admin', adminRouter);
+app.use('/api/v1/teacher', teacherRouter);
 
 app.get('/', (req, res) => {
     res.send('LMS Backend API is Running...');

@@ -15,4 +15,8 @@ router.post('/', authMiddleware, courseController.addCourse);
 router.put('/:id', authMiddleware, courseController.updateCourse);
 router.delete('/:id', authMiddleware, courseController.deleteCourse);
 
+router.get('/:id/learn', authMiddleware, courseController.getLearnData);
+router.post('/:id/learn/progress', authMiddleware, courseController.saveModuleProgress);
+router.post('/:id/learn/exam', authMiddleware, courseController.submitFinalExam);
+
 module.exports = router;
