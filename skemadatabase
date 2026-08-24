@@ -6,22 +6,44 @@ CREATE TABLE public.certificates (
   user_id uuid,
   course_id uuid,
   certificate_url text,
-  issued_at timestamp with time zone DEFAULT now(),
+  certificate_number text UNIQUE,
+  status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'issued')),
+  issued_at timestamp with time zone,
+  issued_by uuid,
+  created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT certificates_pkey PRIMARY KEY (id),
   CONSTRAINT certificates_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id),
-  CONSTRAINT certificates_course_id_fkey FOREIGN KEY (course_id) REFERENCES public.courses(id)
+  CONSTRAINT certificates_course_id_fkey FOREIGN KEY (course_id) REFERENCES public.courses(id),
+  CONSTRAINT certificates_issued_by_fkey FOREIGN KEY (issued_by) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.certificate_templates (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  course_id uuid NOT NULL,
+  template_file text NOT NULL,
+  file_name text,
+  uploaded_by uuid,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT certificate_templates_pkey PRIMARY KEY (id),
+  CONSTRAINT certificate_templates_course_unique UNIQUE (course_id),
+  CONSTRAINT certificate_templates_course_id_fkey FOREIGN KEY (course_id) REFERENCES public.courses(id)
 );
 CREATE TABLE public.courses (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   title text NOT NULL,
   description text,
-  category text,
-  price numeric DEFAULT 0,
-  is_placement_test boolean DEFAULT false,
   thumbnail_url text,
+  delivery_type text NOT NULL DEFAULT 'Online' CHECK (delivery_type IN ('Online', 'Offline')),
+  category text NOT NULL CHECK (category IN ('Komputer', 'Bahasa Inggris', 'Bahasa Asing', 'Desain', 'Programming', 'Marketing', 'Akuntansi', 'Bimbingan Belajar')),
+  level text NOT NULL DEFAULT 'Beginner' CHECK (level IN ('Beginner', 'Intermediate', 'Advanced')),
+  learning_type text NOT NULL DEFAULT 'Regular' CHECK (learning_type IN ('Regular', 'Private')),
+  tags text[] NOT NULL DEFAULT '{}',
+  price numeric DEFAULT 0,
+  teacher_id uuid,
+  is_placement_test boolean DEFAULT false,
   created_by uuid,
   CONSTRAINT courses_pkey PRIMARY KEY (id),
-  CONSTRAINT courses_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.profiles(id)
+  CONSTRAINT courses_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.profiles(id),
+  CONSTRAINT courses_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES public.profiles(id)
 );
 CREATE TABLE public.modules (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),

@@ -96,14 +96,14 @@ exports.login = async (req, res) => {
 
 exports.staffLogin = async (req, res) => {
     try {
-        const { email, password } = req.body;
+        const { email, password } = req.body || {};
 
         if (!email || !password) {
             return res.status(400).json({
                 status: 'error',
                 message: 'Email dan password wajib diisi.'
             });
-        }
+            }
 
         const result = await authModel.loginUser(email, password);
         const profile = await authModel.getProfileByUserId(result.user.id);

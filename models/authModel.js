@@ -1,5 +1,6 @@
 // src/models/authModel.js
 const supabase = require('../config/supabase');
+const supabaseAuth = require('../config/supabaseAuth');
 
 // 1. Register user menggunakan Admin API (Bypass limit email & auto-confirm)
 exports.registerUser = async (email, password, full_name) => {
@@ -33,7 +34,7 @@ exports.insertProfile = async (userId, full_name) => {
 
 // 3. Login user
 exports.loginUser = async (email, password) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabaseAuth.auth.signInWithPassword({ email, password });
     if (error) throw error;
     
     return {

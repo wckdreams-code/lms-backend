@@ -1,0 +1,122 @@
+[
+  {
+    "title": "Excel untuk Pemula",
+    "description": "Pelajari dasar-dasar Excel dari nol. Cocok untuk pemula yang ingin meningkatkan skill administrasi.",
+    "thumbnail_url": "https://images.unsplash.com/photo-1633356122544-f134324ef6db?w=400&h=300&fit=crop",
+    "delivery_type": "Online",
+    "category": "Komputer",
+    "level": "Beginner",
+    "learning_type": "Regular",
+    "tags": ["excel", "office", "administrasi", "data entry"],
+    "price": 99000,
+    "is_placement_test": false
+  },
+  {
+    "title": "English Conversation - Basic Level",
+    "description": "Tingkatkan kemampuan berbicara bahasa Inggris dengan praktik langsung dari native speaker.",
+    "thumbnail_url": "https://images.unsplash.com/photo-1543269865-cbdf26405b4f?w=400&h=300&fit=crop",
+    "delivery_type": "Offline",
+    "category": "Bahasa Inggris",
+    "level": "Beginner",
+    "learning_type": "Private",
+    "tags": ["english", "conversation", "speaking", "grammar"],
+    "price": 250000,
+    "is_placement_test": false
+  },
+  {
+    "title": "Graphic Design Fundamentals",
+    "description": "Belajar desain grafis menggunakan Photoshop dan Figma. Dari teori hingga project praktis.",
+    "thumbnail_url": "https://images.unsplash.com/photo-1561070791-2526d30994b5?w=400&h=300&fit=crop",
+    "delivery_type": "Online",
+    "category": "Desain",
+    "level": "Beginner",
+    "learning_type": "Regular",
+    "tags": ["design", "photoshop", "figma", "creativity"],
+    "price": 299000,
+    "is_placement_test": false
+  },
+  {
+    "title": "Python untuk Data Science",
+    "description": "Master Python programming untuk analisis data. Termasuk pandas, numpy, dan matplotlib.",
+    "thumbnail_url": "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=400&h=300&fit=crop",
+    "delivery_type": "Online",
+    "category": "Programming",
+    "level": "Intermediate",
+    "learning_type": "Regular",
+    "tags": ["python", "data science", "programming", "analytics"],
+    "price": 349000,
+    "is_placement_test": false
+  },
+  {
+    "title": "Bahasa Mandarin Dasar",
+    "description": "Pelajari Bahasa Mandarin dari nol. Fokus pada listening, speaking, reading, dan writing.",
+    "thumbnail_url": "https://images.unsplash.com/photo-1516979187457-637abb4f9353?w=400&h=300&fit=crop",
+    "delivery_type": "Offline",
+    "category": "Bahasa Asing",
+    "level": "Beginner",
+    "learning_type": "Regular",
+    "tags": ["mandarin", "chinese", "language", "conversation"],
+    "price": 199000,
+    "is_placement_test": false
+  },
+  {
+    "title": "Digital Marketing Strategy",
+    "description": "Strategi marketing di era digital. SEO, social media, email marketing, dan analytics.",
+    "thumbnail_url": "https://images.unsplash.com/photo-1552664730-d307ca884978?w=400&h=300&fit=crop",
+    "delivery_type": "Online",
+    "category": "Marketing",
+    "level": "Intermediate",
+    "learning_type": "Regular",
+    "tags": ["marketing", "seo", "social media", "digital"],
+    "price": 249000,
+    "is_placement_test": false
+  },
+  {
+    "title": "Dasar Akuntansi & Pembukuan",
+    "description": "Pahami konsep akuntansi dasar, jurnal, buku besar, dan laporan keuangan sederhana.",
+    "thumbnail_url": "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=400&h=300&fit=crop",
+    "delivery_type": "Online",
+    "category": "Akuntansi",
+    "level": "Beginner",
+    "learning_type": "Regular",
+    "tags": ["accounting", "finance", "bookkeeping", "financial reporting"],
+    "price": 179000,
+    "is_placement_test": false
+  },
+  {
+    "title": "TOEFL Preparation - Advanced",
+    "description": "Siapkan diri Anda untuk test TOEFL dengan strategi dan latihan soal intensif.",
+    "thumbnail_url": "https://images.unsplash.com/photo-1532185921828-29b3d1d1ba20?w=400&h=300&fit=crop",
+    "delivery_type": "Online",
+    "category": "Bahasa Inggris",
+    "level": "Advanced",
+    "learning_type": "Private",
+    "tags": ["toefl", "english test", "exam preparation", "advanced english"],
+    "price": 399000,
+    "is_placement_test": false
+  },
+  {
+    "title": "Web Development - React & Node.js",
+    "description": "Bangun aplikasi web full-stack dengan React untuk frontend dan Node.js untuk backend.",
+    "thumbnail_url": "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=400&h=300&fit=crop",
+    "delivery_type": "Online",
+    "category": "Programming",
+    "level": "Advanced",
+    "learning_type": "Regular",
+    "tags": ["react", "nodejs", "web development", "javascript"],
+    "price": 449000,
+    "is_placement_test": false
+  },
+  {
+    "title": "Bimbingan UN/UTBK - Matematika",
+    "description": "Persiapan ujian nasional dan UTBK untuk mapel Matematika. Soal-soal tricky dan tips cepat.",
+    "thumbnail_url": "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&h=300&fit=crop",
+    "delivery_type": "Offline",
+    "category": "Bimbingan Belajar",
+    "level": "Intermediate",
+    "learning_type": "Private",
+    "tags": ["matematika", "un", "utbk", "test preparation"],
+    "price": 299000,
+    "is_placement_test": false
+  }
+]

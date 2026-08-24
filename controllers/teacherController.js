@@ -327,8 +327,8 @@ exports.importModuleQuestions = async (req, res) => {
 
 exports.downloadQuestionTemplate = async (req, res) => {
   const csv = [
-    'question_text,option_a,option_b,option_c,option_d,correct_answer,image_url,explanation',
-    'Apa kepanjangan dari CPU?,Central Processing Unit,Computer Personal Unit,Central Program User,Control Processing Unit,A,,CPU adalah pusat pemrosesan komputer.'
+    'question,option_a,option_b,option_c,option_d,answer,explanation',
+    'Apa kepanjangan dari CPU?,Central Processing Unit,Computer Personal Unit,Central Program User,Control Processing Unit,A,CPU adalah pusat pemrosesan komputer.'
   ].join('\n');
 
   res.setHeader('Content-Type', 'text/csv');
@@ -496,8 +496,8 @@ exports.updateCourseExamSetting = async (req, res) => {
 
 exports.downloadExamTemplate = async (req, res) => {
   const csv = [
-    'question_text,option_a,option_b,option_c,option_d,correct_answer,image_url',
-    'Apa kepanjangan dari CPU?,Central Processing Unit,Computer Personal Unit,Central Program User,Control Processing Unit,A,'
+    'question,option_a,option_b,option_c,option_d,answer',
+    'Apa kepanjangan dari CPU?,Central Processing Unit,Computer Personal Unit,Central Program User,Control Processing Unit,A'
   ].join('\n');
 
   res.setHeader('Content-Type', 'text/csv');
@@ -524,6 +524,100 @@ exports.importCourseExamQuestions = async (req, res) => {
     });
   } catch (error) {
     res.status(400).json({
+      status: 'error',
+      message: error.message
+    });
+  }
+};
+
+// Teacher Profile Controller Methods
+exports.getTeacherProfile = async (req, res) => {
+  try {
+    const { teacherId } = req.params;
+
+    const profile = await teacherModel.getTeacherProfile(teacherId);
+
+    res.status(200).json({
+      status: 'success',
+      data: profile
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: error.message
+    });
+  }
+};
+
+exports.updateTeacherProfile = async (req, res) => {
+  try {
+    const { teacherId } = req.params;
+    const { full_name } = req.body;
+
+    if (!full_name) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Nama lengkap wajib diisi'
+      });
+    }
+
+    const updated = await teacherModel.updateTeacherProfile(teacherId, { full_name });
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Profil berhasil diperbarui',
+      data: updated
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: error.message
+    });
+  }
+};
+
+exports.changeTeacherPassword = async (req, res) => {
+  try {
+    const { teacherId } = req.params;
+    const { current_password, new_password } = req.body;
+
+    await teacherModel.changeTeacherPassword(teacherId, {
+      currentPassword: current_password,
+      newPassword: new_password
+    });
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Password berhasil diubah'
+    });
+  } catch (error) {
+    res.status(400).json({
+      status: 'error',
+      message: error.message
+    });
+  }
+};
+
+exports.updateTeacherAvatar = async (req, res) => {
+  try {
+    const { teacherId } = req.params;
+
+    if (!req.file) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'File avatar wajib dikirim'
+      });
+    }
+
+    const updated = await teacherModel.updateTeacherAvatar(teacherId, req.file);
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Foto profil berhasil diperbarui',
+      data: updated
+    });
+  } catch (error) {
+    res.status(500).json({
       status: 'error',
       message: error.message
     });

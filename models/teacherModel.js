@@ -1,10 +1,40 @@
 const supabase = require('../config/supabase');
+const supabaseAuth = require('../config/supabaseAuth');
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Normalisasi input UUID dari client:
+// - "" / undefined / "null" → null (mencegah error Postgres 22P02: invalid input syntax for type uuid)
+// - jika wajib (required) tapi kosong/format salah → error yang jelas, bukan error database.
+function normalizeUuid(value, { required = false, label = 'ID' } = {}) {
+  const clean = String(value ?? '').trim();
+
+  if (!clean || clean === 'null' || clean === 'undefined') {
+    if (required) throw new Error(`${label} wajib dikirim.`);
+    return null;
+  }
+
+  if (!UUID_REGEX.test(clean)) {
+    throw new Error(`${label} tidak valid.`);
+  }
+
+  return clean;
+}
+
+exports.normalizeUuid = normalizeUuid;
 
 exports.getTeacherCourses = async (teacherId) => {
   const { data, error } = await supabase
     .from('courses')
     .select(`
       *,
+      course_exam_settings (
+        duration_minutes
+      ),
+      questions (
+        id,
+        is_exam
+      ),
       modules (
         id,
         title,
@@ -62,9 +92,19 @@ exports.getCourseModules = async (courseId, teacherId) => {
 };
 
 exports.createModule = async (payload) => {
+  const cleanPayload = {
+    course_id: normalizeUuid(payload.course_id, { required: true, label: 'Course ID' }),
+    title: String(payload.title || '').trim(),
+    order_index: Number(payload.order_index || 0)
+  };
+
+  if (!cleanPayload.title) {
+    throw new Error('Judul modul wajib diisi.');
+  }
+
   const { data, error } = await supabase
     .from('modules')
-    .insert(payload)
+    .insert(cleanPayload)
     .select()
     .single();
 
@@ -140,19 +180,16 @@ async function uploadMaterialPdf(file) {
 
 exports.createMaterial = async ({ body, file }) => {
   const normalizedTitle = String(body.title || '').trim();
+  const moduleId = normalizeUuid(body.module_id, { required: true, label: 'Module ID' });
 
   if (!normalizedTitle) {
     throw new Error('Judul materi wajib diisi.');
   }
 
-  if (!body.module_id) {
-    throw new Error('Module ID wajib dikirim.');
-  }
-
   const { data: existingMaterial, error: existingError } = await supabase
     .from('materials')
     .select('id')
-    .eq('module_id', body.module_id)
+    .eq('module_id', moduleId)
     .ilike('title', normalizedTitle)
     .maybeSingle();
 
@@ -165,7 +202,7 @@ exports.createMaterial = async ({ body, file }) => {
   const uploadedFile = await uploadMaterialPdf(file);
 
   const payload = {
-    module_id: body.module_id,
+    module_id: moduleId,
     title: normalizedTitle,
     order_index: Number(body.order_index || 0),
     ...uploadedFile
@@ -196,7 +233,7 @@ exports.updateMaterial = async (materialId, { body, file }) => {
 
   if (currentError) throw currentError;
 
-  const targetModuleId = body.module_id || currentMaterial.module_id;
+  const targetModuleId = normalizeUuid(body.module_id) || currentMaterial.module_id;
 
   const { data: existingMaterial, error: existingError } = await supabase
     .from('materials')
@@ -232,10 +269,12 @@ exports.updateMaterial = async (materialId, { body, file }) => {
 };
 
 exports.reorderModules = async ({ teacherId, courseId, modules }) => {
+  const cleanCourseId = normalizeUuid(courseId, { required: true, label: 'Course ID' });
+
   const { data: course, error: courseError } = await supabase
     .from('courses')
     .select('id')
-    .eq('id', courseId)
+    .eq('id', cleanCourseId)
     .eq('teacher_id', teacherId)
     .single();
 
@@ -273,6 +312,8 @@ exports.reorderModules = async ({ teacherId, courseId, modules }) => {
 };
 
 exports.reorderMaterials = async ({ teacherId, moduleId, materials }) => {
+  const cleanModuleId = normalizeUuid(moduleId, { required: true, label: 'Module ID' });
+
   const { data: module, error: moduleError } = await supabase
     .from('modules')
     .select(`
@@ -283,7 +324,7 @@ exports.reorderMaterials = async ({ teacherId, moduleId, materials }) => {
         teacher_id
       )
     `)
-    .eq('id', moduleId)
+    .eq('id', cleanModuleId)
     .eq('courses.teacher_id', teacherId)
     .single();
 
@@ -352,6 +393,8 @@ async function uploadQuestionImage(file) {
 }
 
 exports.getModuleQuestions = async ({ teacherId, moduleId }) => {
+  const cleanModuleId = normalizeUuid(moduleId, { required: true, label: 'Module ID' });
+
   const { data: module, error: moduleError } = await supabase
     .from('modules')
     .select(`
@@ -362,7 +405,7 @@ exports.getModuleQuestions = async ({ teacherId, moduleId }) => {
         teacher_id
       )
     `)
-    .eq('id', moduleId)
+    .eq('id', cleanModuleId)
     .eq('courses.teacher_id', teacherId)
     .single();
 
@@ -381,6 +424,8 @@ exports.getModuleQuestions = async ({ teacherId, moduleId }) => {
 };
 
 exports.createModuleQuestion = async ({ teacherId, body, file }) => {
+  const moduleId = normalizeUuid(body.module_id, { required: true, label: 'Module ID' });
+
   const { data: module, error: moduleError } = await supabase
     .from('modules')
     .select(`
@@ -391,7 +436,7 @@ exports.createModuleQuestion = async ({ teacherId, body, file }) => {
         teacher_id
       )
     `)
-    .eq('id', body.module_id)
+    .eq('id', moduleId)
     .eq('courses.teacher_id', teacherId)
     .single();
 
@@ -501,8 +546,28 @@ function parseQuestionsCsv(buffer) {
     throw new Error('CSV harus memiliki header dan minimal 1 soal.');
   }
 
-  const headers = parseCsvLine(lines[0]).map(item => item.trim());
-  const requiredHeaders = [
+  const headers = parseCsvLine(lines[0]).map(item => item.trim().toLowerCase());
+
+  // Terima header template baru (question, answer) maupun lama (question_text, correct_answer).
+  const headerAliases = {
+    question_text: ['question_text', 'question'],
+    option_a: ['option_a'],
+    option_b: ['option_b'],
+    option_c: ['option_c'],
+    option_d: ['option_d'],
+    correct_answer: ['correct_answer', 'answer'],
+    image_url: ['image_url'],
+    explanation: ['explanation']
+  };
+
+  const columnMap = {};
+
+  Object.entries(headerAliases).forEach(([field, aliases]) => {
+    const found = headers.findIndex(header => aliases.includes(header));
+    if (found !== -1) columnMap[field] = found;
+  });
+
+  const requiredFields = [
     'question_text',
     'option_a',
     'option_b',
@@ -511,7 +576,7 @@ function parseQuestionsCsv(buffer) {
     'correct_answer'
   ];
 
-  const missingHeaders = requiredHeaders.filter(header => !headers.includes(header));
+  const missingHeaders = requiredFields.filter(field => columnMap[field] === undefined);
 
   if (missingHeaders.length) {
     throw new Error(`Header CSV tidak lengkap: ${missingHeaders.join(', ')}`);
@@ -520,8 +585,8 @@ function parseQuestionsCsv(buffer) {
   return lines.slice(1).map((line, index) => {
     const values = parseCsvLine(line);
 
-    const row = headers.reduce((acc, header, headerIndex) => {
-      acc[header] = values[headerIndex] || '';
+    const row = Object.keys(headerAliases).reduce((acc, field) => {
+      acc[field] = columnMap[field] !== undefined ? values[columnMap[field]] || '' : '';
       return acc;
     }, {});
 
@@ -532,7 +597,7 @@ function parseQuestionsCsv(buffer) {
     }
 
     if (!['A', 'B', 'C', 'D'].includes(correctAnswer)) {
-      throw new Error(`Baris ${index + 2}: correct_answer harus A, B, C, atau D.`);
+      throw new Error(`Baris ${index + 2}: jawaban benar harus A, B, C, atau D.`);
     }
 
     return {
@@ -557,6 +622,8 @@ exports.importModuleQuestions = async ({ teacherId, body, file }) => {
     throw new Error('File harus berformat CSV.');
   }
 
+  const importModuleId = normalizeUuid(body.module_id, { required: true, label: 'Module ID' });
+
   const { data: module, error: moduleError } = await supabase
     .from('modules')
     .select(`
@@ -567,7 +634,7 @@ exports.importModuleQuestions = async ({ teacherId, body, file }) => {
         teacher_id
       )
     `)
-    .eq('id', body.module_id)
+    .eq('id', importModuleId)
     .eq('courses.teacher_id', teacherId)
     .single();
 
@@ -636,6 +703,136 @@ exports.importModuleQuestions = async ({ teacherId, body, file }) => {
   return data;
 };
 
+exports.changeTeacherPassword = async (teacherId, { currentPassword, newPassword }) => {
+  if (!currentPassword) {
+    throw new Error('Password lama wajib diisi.');
+  }
+
+  if (!newPassword || newPassword.length < 8) {
+    throw new Error('Password baru minimal 8 karakter.');
+  }
+
+  if (currentPassword === newPassword) {
+    throw new Error('Password baru tidak boleh sama dengan password lama.');
+  }
+
+  const { data: { user }, error: userError } = await supabase.auth.admin.getUserById(teacherId);
+
+  if (userError || !user) {
+    throw new Error('Akun tidak ditemukan.');
+  }
+
+  // Verifikasi password lama dengan mencoba login.
+  // Pakai client terpisah (supabaseAuth) agar sesi user tidak menempel
+  // di client service-role dan menyebabkan error RLS pada request lain.
+  const { error: verifyError } = await supabaseAuth.auth.signInWithPassword({
+    email: user.email,
+    password: currentPassword
+  });
+
+  if (verifyError) {
+    throw new Error('Password lama salah.');
+  }
+
+  const { error: updateError } = await supabase.auth.admin.updateUserById(teacherId, {
+    password: newPassword
+  });
+
+  if (updateError) throw updateError;
+
+  return true;
+};
+
+// Teacher Profile Methods
+exports.getTeacherProfile = async (teacherId) => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', teacherId)
+    .single();
+
+  if (error) throw error;
+
+  // Get email from auth.users
+  const { data: { user } } = await supabase.auth.admin.getUserById(teacherId);
+
+  return {
+    ...data,
+    email: user?.email || ''
+  };
+};
+
+exports.updateTeacherProfile = async (teacherId, updateData) => {
+  const cleanData = {
+    full_name: updateData.full_name
+  };
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .update(cleanData)
+    .eq('id', teacherId)
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  // Get email from auth.users
+  const { data: { user } } = await supabase.auth.admin.getUserById(teacherId);
+
+  return {
+    ...data,
+    email: user?.email || ''
+  };
+};
+
+exports.updateTeacherAvatar = async (teacherId, file) => {
+  if (!file) {
+    throw new Error('File avatar wajib dikirim');
+  }
+
+  if (!file.mimetype.startsWith('image/')) {
+    throw new Error('File harus berupa gambar');
+  }
+
+  const fileExt = file.originalname.split('.').pop();
+  const fileName = `${teacherId}-${Date.now()}.${fileExt}`;
+  const filePath = `profiles/${fileName}`;
+
+  const bucket = 'avatars';
+
+  const { error: uploadError } = await supabase.storage
+    .from(bucket)
+    .upload(filePath, file.buffer, {
+      contentType: file.mimetype,
+      upsert: true
+    });
+
+  if (uploadError) throw uploadError;
+
+  const { data: publicUrlData } = supabase.storage
+    .from(bucket)
+    .getPublicUrl(filePath);
+
+  const avatarUrl = publicUrlData.publicUrl;
+
+  const { data: updated, error: updateError } = await supabase
+    .from('profiles')
+    .update({ avatar_url: avatarUrl })
+    .eq('id', teacherId)
+    .select()
+    .single();
+
+  if (updateError) throw updateError;
+
+  // Get email from auth.users
+  const { data: { user } } = await supabase.auth.admin.getUserById(teacherId);
+
+  return {
+    ...updated,
+    email: user?.email || ''
+  };
+};
+
 function normalizeQuestionPayload(item, index = 0, module) {
   const correctAnswer = String(item.correct_answer || '').trim().toUpperCase();
 
@@ -668,6 +865,11 @@ function normalizeQuestionPayload(item, index = 0, module) {
 }
 
 exports.deleteModuleQuestions = async ({ teacherId, moduleId, questionIds = [] }) => {
+  const cleanModuleId = normalizeUuid(moduleId, { required: true, label: 'Module ID' });
+  const cleanQuestionIds = (questionIds || [])
+    .map(id => normalizeUuid(id, { label: 'Question ID' }))
+    .filter(Boolean);
+
   const { data: module, error: moduleError } = await supabase
     .from('modules')
     .select(`
@@ -678,7 +880,7 @@ exports.deleteModuleQuestions = async ({ teacherId, moduleId, questionIds = [] }
         teacher_id
       )
     `)
-    .eq('id', moduleId)
+    .eq('id', cleanModuleId)
     .eq('courses.teacher_id', teacherId)
     .single();
 
@@ -690,8 +892,8 @@ exports.deleteModuleQuestions = async ({ teacherId, moduleId, questionIds = [] }
     .eq('module_id', module.id)
     .eq('is_exam', false);
 
-  if (questionIds.length) {
-    query = query.in('id', questionIds);
+  if (cleanQuestionIds.length) {
+    query = query.in('id', cleanQuestionIds);
   }
 
   const { error } = await query;
@@ -702,12 +904,8 @@ exports.deleteModuleQuestions = async ({ teacherId, moduleId, questionIds = [] }
 };
 
 exports.syncModuleQuestions = async ({ teacherId, body, files = [] }) => {
-  const moduleId = body.module_id;
+  const moduleId = normalizeUuid(body.module_id, { required: true, label: 'Module ID' });
   const mode = body.mode || 'append';
-
-  if (!moduleId) {
-    throw new Error('Module ID wajib dikirim.');
-  }
 
   const { data: module, error: moduleError } = await supabase
     .from('modules')
@@ -751,6 +949,21 @@ exports.syncModuleQuestions = async ({ teacherId, body, files = [] }) => {
       .eq('is_exam', false);
   }
 
+  // Saat append, lanjutkan penomoran dari soal yang sudah ada
+  // agar soal import tidak menyisip di tengah urutan lama.
+  let orderOffset = 0;
+
+  if (mode === 'append') {
+    const { count, error: countError } = await supabase
+      .from('questions')
+      .select('id', { count: 'exact', head: true })
+      .eq('module_id', module.id)
+      .eq('is_exam', false);
+
+    if (countError) throw countError;
+    orderOffset = Number(count || 0);
+  }
+
   const savedQuestions = [];
 
   for (let index = 0; index < questions.length; index++) {
@@ -763,7 +976,7 @@ exports.syncModuleQuestions = async ({ teacherId, body, files = [] }) => {
       {
         ...item,
         image_url: uploadedImage?.image_url || item.image_url || null,
-        order_index: index + 1
+        order_index: orderOffset + index + 1
       },
       index,
       module
@@ -802,10 +1015,12 @@ exports.syncModuleQuestions = async ({ teacherId, body, files = [] }) => {
 };
 
 exports.getCourseExam = async ({ teacherId, courseId }) => {
+  const cleanCourseId = normalizeUuid(courseId, { required: true, label: 'Course ID' });
+
   const { data: course, error: courseError } = await supabase
     .from('courses')
     .select('id')
-    .eq('id', courseId)
+    .eq('id', cleanCourseId)
     .eq('teacher_id', teacherId)
     .single();
 
@@ -838,10 +1053,8 @@ exports.getCourseExam = async ({ teacherId, courseId }) => {
 };
 
 exports.syncCourseExamQuestions = async ({ teacherId, body, files = [] }) => {
-  const courseId = body.course_id;
+  const courseId = normalizeUuid(body.course_id, { required: true, label: 'Course ID' });
   const mode = body.mode || 'append';
-
-  if (!courseId) throw new Error('Course ID wajib dikirim.');
 
   const { data: course, error: courseError } = await supabase
     .from('courses')
@@ -880,6 +1093,19 @@ exports.syncCourseExamQuestions = async ({ teacherId, body, files = [] }) => {
     if (error) throw error;
   }
 
+  let orderOffset = 0;
+
+  if (mode === 'append') {
+    const { count, error: countError } = await supabase
+      .from('questions')
+      .select('id', { count: 'exact', head: true })
+      .eq('course_id', course.id)
+      .eq('is_exam', true);
+
+    if (countError) throw countError;
+    orderOffset = Number(count || 0);
+  }
+
   const savedQuestions = [];
 
   for (let index = 0; index < questions.length; index++) {
@@ -914,7 +1140,7 @@ exports.syncCourseExamQuestions = async ({ teacherId, body, files = [] }) => {
       image_storage_path: uploadedImage?.image_storage_path || item.image_storage_path || null,
       explanation: null,
       is_exam: true,
-      order_index: index + 1
+      order_index: orderOffset + index + 1
     };
 
     if (item.id && mode !== 'append') {
@@ -945,10 +1171,15 @@ exports.syncCourseExamQuestions = async ({ teacherId, body, files = [] }) => {
 };
 
 exports.deleteCourseExamQuestions = async ({ teacherId, courseId, questionIds = [] }) => {
+  const cleanCourseId = normalizeUuid(courseId, { required: true, label: 'Course ID' });
+  const cleanQuestionIds = (questionIds || [])
+    .map(id => normalizeUuid(id, { label: 'Question ID' }))
+    .filter(Boolean);
+
   const { data: course, error: courseError } = await supabase
     .from('courses')
     .select('id')
-    .eq('id', courseId)
+    .eq('id', cleanCourseId)
     .eq('teacher_id', teacherId)
     .single();
 
@@ -960,8 +1191,8 @@ exports.deleteCourseExamQuestions = async ({ teacherId, courseId, questionIds = 
     .eq('course_id', course.id)
     .eq('is_exam', true);
 
-  if (questionIds.length) {
-    query = query.in('id', questionIds);
+  if (cleanQuestionIds.length) {
+    query = query.in('id', cleanQuestionIds);
   }
 
   const { error } = await query;
@@ -971,6 +1202,7 @@ exports.deleteCourseExamQuestions = async ({ teacherId, courseId, questionIds = 
 };
 
 exports.upsertCourseExamSetting = async ({ teacherId, courseId, durationMinutes }) => {
+  const cleanCourseId = normalizeUuid(courseId, { required: true, label: 'Course ID' });
   const duration = Number(durationMinutes);
 
   if (!duration || duration < 1) {
@@ -984,7 +1216,7 @@ exports.upsertCourseExamSetting = async ({ teacherId, courseId, durationMinutes 
   const { data: course, error: courseError } = await supabase
     .from('courses')
     .select('id')
-    .eq('id', courseId)
+    .eq('id', cleanCourseId)
     .eq('teacher_id', teacherId)
     .single();
 
@@ -1017,11 +1249,7 @@ exports.importCourseExamQuestions = async ({ teacherId, body, file }) => {
     throw new Error('File harus berformat CSV.');
   }
 
-  const courseId = body.course_id;
-
-  if (!courseId) {
-    throw new Error('Course ID wajib dikirim.');
-  }
+  const courseId = normalizeUuid(body.course_id, { required: true, label: 'Course ID' });
 
   const { data: course, error: courseError } = await supabase
     .from('courses')

@@ -1,6 +1,8 @@
 const express = require('express');
 const multer = require('multer');
 const teacherController = require('../controllers/teacherController');
+const authMiddleware = require('../middleware/auth');
+const teacherGuard = require('../middleware/teacherGuard');
 
 const router = express.Router();
 const upload = multer({
@@ -10,6 +12,20 @@ const upload = multer({
     files: 30
   }
 });
+
+// ── Route publik (dibuka via <a href>, tidak bisa mengirim header Authorization) ──
+router.get(
+  '/:teacherId/questions/template',
+  teacherController.downloadQuestionTemplate
+);
+
+router.get(
+  '/:teacherId/exam/template',
+  teacherController.downloadExamTemplate
+);
+
+// ── Semua route di bawah ini wajib login + hanya boleh akses data sendiri ──
+router.use('/:teacherId', authMiddleware, teacherGuard);
 
 router.get('/:teacherId/courses', teacherController.getDashboardCourses);
 router.get('/:teacherId/courses/:courseId/modules', teacherController.getCourseModules);
@@ -33,11 +49,6 @@ router.put(
 router.delete('/:teacherId/materials/:materialId', teacherController.deleteMaterial);
 router.patch('/:teacherId/modules/reorder', teacherController.reorderModules);
 router.patch('/:teacherId/materials/reorder', teacherController.reorderMaterials);
-
-router.get(
-  '/:teacherId/questions/template',
-  teacherController.downloadQuestionTemplate
-);
 
 router.get(
   '/:teacherId/modules/:moduleId/questions',
@@ -88,15 +99,20 @@ router.patch(
   teacherController.updateCourseExamSetting
 );
 
-router.get(
-  '/:teacherId/exam/template',
-  teacherController.downloadExamTemplate
-);
-
 router.post(
   '/:teacherId/exam/import',
   upload.single('csv'),
   teacherController.importCourseExamQuestions
+);
+
+// Teacher Profile Routes
+router.get('/:teacherId/profile', teacherController.getTeacherProfile);
+router.put('/:teacherId/profile', teacherController.updateTeacherProfile);
+router.put('/:teacherId/profile/password', teacherController.changeTeacherPassword);
+router.post(
+  '/:teacherId/profile/avatar',
+  upload.single('avatar'),
+  teacherController.updateTeacherAvatar
 );
 
 module.exports = router;
