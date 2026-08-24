@@ -20,40 +20,20 @@ const studentRouter = require("./routers/studentRouter");
 
 const app = express();
 
-// Konfigurasi CORS.
-const corsOptions = {
-  origin(origin, callback) {
-    const allowedOrigins = [
-      "http://localhost:5555",
-      "http://localhost:4321",
-      "http://localhost:5173",
-      "http://127.0.0.1:5555",
-      "http://127.0.0.1:4321",
-      "http://127.0.0.1:5173",
-      "https://lpia-backend-deploy.up.railway.app",
-      "https://lms-frontend-production-9d81.up.railway.app"
-    ];
-
-    if (!origin || allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-
-    console.warn(`CORS blocked origin: ${origin}`);
-    return callback(new Error(`CORS blocked for origin: ${origin}`));
-  },
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-};
-
+// Konfigurasi CORS (Mengizinkan Frontend Railway & Localhost)
 app.use(cors({
-  origin: true, // Otomatis mengizinkan request dari origin manapun (Frontend Railway/Localhost)
+  origin: true,
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
+
+// Tangani eksplisit semua preflight request (OPTIONS)
+app.options("*", cors());
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
 // Routes
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/courses", courseRouter);
@@ -69,7 +49,9 @@ app.use("/api/v1/landing", landingRouter);
 app.use("/api/v1/offline-registrations", offlineRegistrationRouter);
 app.use("/api/v1/offline-schedules", offlineScheduleRouter);
 app.use("/api/v1/student", studentRouter);
+
 console.log("Recommendation router loaded");
+
 app.get("/", (req, res) => {
   res.send("LMS Backend API is Running...");
 });
