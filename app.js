@@ -20,9 +20,23 @@ const studentRouter = require("./routers/studentRouter");
 
 const app = express();
 
-// Konfigurasi CORS (Mengizinkan Frontend Railway & Localhost)
+const allowedOrigins = [
+  "https://lms-frontend-production-9d81.up.railway.app",
+  "https://lms-frontend-production-3d4c.up.railway.app",
+  "http://localhost:5173",
+  "http://localhost:4321",
+  "http://localhost:3000"
+];
+
 app.use(cors({
-  origin: true,
+  origin: function (origin, callback) {
+    // Izinkan request tanpa origin (seperti Postman) atau yang ada di allowedOrigins
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("CORS policy: Origin tidak diizinkan."));
+    }
+  },
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
