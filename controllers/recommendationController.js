@@ -1,24 +1,30 @@
-const recommendationModel = require('../models/recommendationModel');
+const recommendationModel = require("../models/recommendationModel");
 const {
   buildUserLearningProfile,
   buildPopularityMap,
   rankCoursesForUser,
-  rankSimilarCourses
-} = require('../utils/recommendationEngine');
+  rankSimilarCourses,
+} = require("../utils/recommendationEngine");
 
 const CATEGORY_TAG_MAP = {
-  Komputer: ['computer', 'office', 'excel', 'administration'],
-  'Bahasa Inggris': ['english', 'grammar', 'speaking', 'conversation'],
-  'Bahasa Asing': ['japanese', 'mandarin', 'language'],
-  Programming: ['coding', 'javascript', 'python', 'web'],
-  Desain: ['design', 'graphic', 'ui', 'ux'],
-  Marketing: ['marketing', 'social media', 'seo'],
-  Akuntansi: ['accounting', 'finance'],
-  'Bimbingan Belajar': ['school', 'exam', 'learning']
+  Komputer: ["computer", "office", "excel", "administration"],
+  "Bahasa Inggris": ["english", "grammar", "speaking", "conversation"],
+  "Bahasa Asing": ["japanese", "mandarin", "language"],
+  Programming: ["coding", "javascript", "python", "web"],
+  Desain: ["design", "graphic", "ui", "ux"],
+  Marketing: ["marketing", "social media", "seo"],
+  Akuntansi: ["accounting", "finance"],
+  "Bimbingan Belajar": ["school", "exam", "learning"],
 };
 
 function buildPreferredTags(preferredCategories = []) {
-  return [...new Set(preferredCategories.flatMap((category) => CATEGORY_TAG_MAP[category] || []))];
+  return [
+    ...new Set(
+      preferredCategories.flatMap(
+        (category) => CATEGORY_TAG_MAP[category] || [],
+      ),
+    ),
+  ];
 }
 
 function uniqueIdsFromEvents(events, contentType) {
@@ -26,32 +32,32 @@ function uniqueIdsFromEvents(events, contentType) {
     ...new Set(
       (events || [])
         .filter((item) => item.content_type === contentType)
-        .map((item) => String(item.content_id))
-    )
+        .map((item) => String(item.content_id)),
+    ),
   ];
 }
 
 async function rebuildProfileInternal(userId, placementLevel = null) {
   const events = await recommendationModel.getUserEvents(userId);
 
-  const courseIds = uniqueIdsFromEvents(events, 'course');
-  const materialIds = uniqueIdsFromEvents(events, 'material');
+  const courseIds = uniqueIdsFromEvents(events, "course");
+  const materialIds = uniqueIdsFromEvents(events, "material");
 
   const [courses, materials] = await Promise.all([
     recommendationModel.getCoursesByIds(courseIds),
-    recommendationModel.getMaterialsByIds(materialIds)
+    recommendationModel.getMaterialsByIds(materialIds),
   ]);
 
   const profilePayload = buildUserLearningProfile({
     events,
     courses,
     materials,
-    placementLevel
+    placementLevel,
   });
 
   return recommendationModel.saveUserLearningProfile({
     user_id: userId,
-    ...profilePayload
+    ...profilePayload,
   });
 }
 
@@ -59,21 +65,21 @@ async function getRecommendedCourses(req, res, next) {
   try {
     const userId = req.user.id;
     const limit = Number(req.query.limit || 10);
-    const forceRebuild = req.query.rebuild === '1';
+    const forceRebuild = req.query.rebuild === "1";
 
     let profile = await recommendationModel.getUserLearningProfile(userId);
 
     if (!profile || forceRebuild) {
       profile = await rebuildProfileInternal(
         userId,
-        profile?.last_placement_level || null
+        profile?.last_placement_level || null,
       );
     }
 
     const [courses, excludedCourseIds, popularityEvents] = await Promise.all([
       recommendationModel.getPublishedCourses(),
       recommendationModel.getUserOwnedOrCompletedCourseIds(userId),
-      recommendationModel.getCoursePopularityEvents()
+      recommendationModel.getCoursePopularityEvents(),
     ]);
 
     const popularityMap = buildPopularityMap(popularityEvents);
@@ -84,18 +90,18 @@ async function getRecommendedCourses(req, res, next) {
         preferred_categories: profile.preferred_categories,
         preferred_tags: profile.preferred_tags,
         weak_tags: profile.weak_tags,
-        preferred_learning_type: profile.preferred_learning_type
+        preferred_learning_type: profile.preferred_learning_type,
       },
       courses,
       excludedCourseIds,
       popularityMap,
-      limit
+      limit,
     });
 
     return res.status(200).json({
       success: true,
-      message: 'Recommended courses fetched successfully',
-      data: recommendations
+      message: "Recommended courses fetched successfully",
+      data: recommendations,
     });
   } catch (error) {
     next(error);
@@ -112,7 +118,7 @@ async function getSimilarCourses(req, res, next) {
     if (!baseCourse) {
       return res.status(404).json({
         success: false,
-        message: 'Course not found'
+        message: "Course not found",
       });
     }
 
@@ -121,13 +127,13 @@ async function getSimilarCourses(req, res, next) {
     const recommendations = rankSimilarCourses({
       baseCourse,
       candidates: allCourses,
-      limit
+      limit,
     });
 
     return res.status(200).json({
       success: true,
-      message: 'Similar courses fetched successfully',
-      data: recommendations
+      message: "Similar courses fetched successfully",
+      data: recommendations,
     });
   } catch (error) {
     next(error);
@@ -143,8 +149,8 @@ async function rebuildLearningProfile(req, res, next) {
 
     return res.status(200).json({
       success: true,
-      message: 'Learning profile rebuilt successfully',
-      data: profile
+      message: "Learning profile rebuilt successfully",
+      data: profile,
     });
   } catch (error) {
     next(error);
@@ -164,18 +170,37 @@ async function saveUserPreferenceProfile(req, res, next) {
       preferred_categories: preferredCategories,
       preferred_level: preferredLevel,
       preferred_learning_type: preferredLearningType,
-      preferred_tags: preferredTags
+      preferred_tags: preferredTags,
     });
 
     return res.status(200).json({
       success: true,
-      message: 'Preference profile saved',
+      message: "Preference profile saved",
       data: {
         preferred_categories: profile.preferred_categories,
         preferred_level: profile.preferred_level,
         preferred_learning_type: profile.preferred_learning_type,
-        preferred_tags: profile.preferred_tags
-      }
+        preferred_tags: profile.preferred_tags,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function getUserPreferenceProfile(req, res, next) {
+  try {
+    const profile = await recommendationModel.getUserLearningProfile(
+      req.user.id,
+    );
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        preferred_categories: profile?.preferred_categories || [],
+        preferred_level: profile?.preferred_level || "Intermediate",
+        preferred_learning_type: profile?.preferred_learning_type || "Regular",
+      },
     });
   } catch (error) {
     next(error);
@@ -186,5 +211,6 @@ module.exports = {
   getRecommendedCourses,
   getSimilarCourses,
   rebuildLearningProfile,
-  saveUserPreferenceProfile
+  saveUserPreferenceProfile,
+  getUserPreferenceProfile,
 };
